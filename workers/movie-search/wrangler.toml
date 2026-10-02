@@ -5,7 +5,7 @@ workers_dev = true
 
 [vars]
 ALLOWED_ORIGINS = "https://sumitkumarsharma11x-glitch.github.io,http://localhost:8080"
-SEARCH_PROVIDER = "tmdb"
+SEARCH_PROVIDER = "wikidata"
 
 # TMDB_READ_TOKEN is a secret, not a [vars] value.
 # Set it with: npx wrangler secret put TMDB_READ_TOKEN
