@@ -5,12 +5,20 @@ async function wd(params,env){
   const u=new URL(API);
   for(const[k,v]of Object.entries({format:"json",formatversion:"2",...params}))u.searchParams.set(k,v);
   const r=await fetch(u,{headers:{
-    "User-Agent":"BoxOfficeIndia/1.1 ("+(env.CONTACT_URL||"https://sumitkumarsharma11x-glitch.github.io/boxoffice-india/")+")",
-    "Accept":"application/json",
-    "Accept-Encoding":"gzip, deflate"
+    "User-Agent":"BoxOfficeIndia/1.2 ("+(env.CONTACT_URL||"https://sumitkumarsharma11x-glitch.github.io/boxoffice-india/")+")",
+    "Accept":"application/json"
   }});
   if(!r.ok)throw Error("wikidata_"+r.status);
   return r.json();
+}
+async function wikiSummary(title){
+  try{
+    const slug=encodeURIComponent(String(title).trim().replace(/ /g,"_"));
+    const r=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+slug,{headers:{"Accept":"application/json"}});
+    if(!r.ok)return null;
+    const d=await r.json();
+    return {poster:d.thumbnail?.source||d.originalimage?.source||"",overview:d.extract||"",sourceUrl:d.content_urls?.desktop?.page||""};
+  }catch{return null}
 }
 const ids=(e,p)=>(e.claims?.[p]||[]).map(c=>c.mainsnak?.datavalue?.value?.id).filter(Boolean);
 const val=(e,p)=>(e.claims?.[p]||[])[0]?.mainsnak?.datavalue?.value;
@@ -28,38 +36,25 @@ export async function searchWikidata(query,env){
   const sr=await Promise.all(langs.map(l=>wd({
     action:"wbsearchentities",search:query,language:l,uselang:l,type:"item",limit:"20"
   },env).then(x=>x.search||[]).catch(()=>[])));
-
   const qids=[];
   for(const list of sr) for(const x of list) if(!qids.includes(x.id)) qids.push(x.id);
   if(!qids.length)return[];
 
   const es=await Promise.all(chunks(qids.slice(0,40),50).map(c=>wd({
-    action:"wbgetentities",ids:c.join("|"),
-    props:"claims|labels|descriptions|aliases",
-    languages:"en|hi"
+    action:"wbgetentities",ids:c.join("|"),props:"claims|labels|descriptions|aliases",languages:"en|hi"
   },env)));
   const all=Object.assign({},...es.map(x=>x.entities||{}));
-
   const key=norm(query);
   const films=qids.map(id=>all[id]).filter(Boolean).filter(e=>{
     const title=norm(label(e));
-    const exact=title===key;
-    const film=ids(e,"P31").some(x=>FILM_CLASSES.has(x));
-    const hasRelease=(e.claims?.P577||[]).length>0;
-    const hasImdb=Boolean(val(e,"P345"));
-    return exact || film || hasRelease || hasImdb;
-  }).sort((a,b)=>{
-    const ae=norm(label(a))===key?1:0;
-    const be=norm(label(b))===key?1:0;
-    return be-ae;
-  }).slice(0,10);
-
+    return title===key || ids(e,"P31").some(x=>FILM_CLASSES.has(x)) || (e.claims?.P577||[]).length>0 || Boolean(val(e,"P345"));
+  }).sort((a,b)=>(norm(label(b))===key)-(norm(label(a))===key)).slice(0,10);
   if(!films.length)return[];
 
   const refs=new Set();
   for(const f of films){
     ids(f,"P57").slice(0,2).forEach(x=>refs.add(x));
-    ids(f,"P161").slice(0,6).forEach(x=>refs.add(x));
+    ids(f,"P161").slice(0,8).forEach(x=>refs.add(x));
     ids(f,"P364").slice(0,1).forEach(x=>refs.add(x));
     ids(f,"P136").slice(0,4).forEach(x=>refs.add(x));
   }
@@ -69,21 +64,21 @@ export async function searchWikidata(query,env){
   const labels=Object.assign({},...rs.map(x=>x.entities||{}));
   const name=id=>label(labels[id]);
 
-  return films.map(f=>{
+  return Promise.all(films.map(async f=>{
+    const title=label(f);
+    const wiki=await wikiSummary(title);
     const imageFile=val(f,"P18");
-    const poster=imageFile
-      ?"https://commons.wikimedia.org/wiki/Special:Redirect/file/"+encodeURIComponent(imageFile)
-      :"";
+    const wikidataPoster=imageFile?"https://commons.wikimedia.org/wiki/Special:Redirect/file/"+encodeURIComponent(imageFile):"";
     return {
       id:"wd:"+f.id,
-      title:label(f),
+      title,
       originalTitle:val(f,"P1476")?.text||"",
       year:year(f),
       release:(f.claims?.P577?.[0]?.mainsnak?.datavalue?.value?.time||"").slice(1,11),
       lang:name(ids(f,"P364")[0])||"",
       genre:ids(f,"P136").slice(0,4).map(name).filter(Boolean).join(" · "),
-      overview:f.descriptions?.en?.value||f.descriptions?.hi?.value||"",
-      poster,
+      overview:wiki?.overview||f.descriptions?.en?.value||f.descriptions?.hi?.value||"",
+      poster:wikidataPoster||wiki?.poster||"",
       backdrop:"",
       rating:0,
       votes:0,
@@ -93,5 +88,5 @@ export async function searchWikidata(query,env){
       source:"Wikidata",
       sourceUrl:"https://www.wikidata.org/wiki/"+f.id
     };
-  });
+  }));
 }
