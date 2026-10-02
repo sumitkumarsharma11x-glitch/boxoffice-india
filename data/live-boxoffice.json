@@ -1,0 +1,20 @@
+{
+  "updated": "2026-10-02T20:02:00+05:30",
+  "source": "TrackTollywood",
+  "sourceUrl": "https://tracktollywood.com/box-office-collection/prem-keetanu/",
+  "movies": [
+    {
+      "id": "prem-keetanu",
+      "title": "Prem Keetanu",
+      "lang": "Hindi",
+      "release": "2026-10-02",
+      "status": "Estimated",
+      "indiaGross": 0.5233,
+      "indiaGrossUnit": "Cr",
+      "dayWise": [
+        { "day": 1, "indiaGross": 0.5213, "unit": "Cr", "status": "Estimated" }
+      ],
+      "note": "Live third-party estimate. Source figures may differ; this site does not present them as official."
+    }
+  ]
+}
