@@ -5,7 +5,7 @@ async function wd(params,env){
   const u=new URL(API);
   for(const[k,v]of Object.entries({format:"json",formatversion:"2",...params}))u.searchParams.set(k,v);
   const r=await fetch(u,{headers:{
-    "User-Agent":"BoxOfficeIndia/1.0 ("+(env.CONTACT_URL||"https://sumitkumarsharma11x-glitch.github.io/boxoffice-india/")+")",
+    "User-Agent":"BoxOfficeIndia/1.1 ("+(env.CONTACT_URL||"https://sumitkumarsharma11x-glitch.github.io/boxoffice-india/")+")",
     "Accept":"application/json",
     "Accept-Encoding":"gzip, deflate"
   }});
@@ -13,7 +13,7 @@ async function wd(params,env){
   return r.json();
 }
 const ids=(e,p)=>(e.claims?.[p]||[]).map(c=>c.mainsnak?.datavalue?.value?.id).filter(Boolean);
-const val=(e,p)=>e.claims?.[p]?.[0]?.mainsnak?.datavalue?.value;
+const val=(e,p)=>(e.claims?.[p]||[])[0]?.mainsnak?.datavalue?.value;
 const label=e=>e?.labels?.en?.value||e?.labels?.hi?.value||Object.values(e?.labels||{})[0]?.value||"";
 const year=e=>{
   const a=(e.claims?.P577||[]).map(c=>c.mainsnak?.datavalue?.value?.time).filter(Boolean)
@@ -30,15 +30,7 @@ export async function searchWikidata(query,env){
   },env).then(x=>x.search||[]).catch(()=>[])));
 
   const qids=[];
-  const searchMeta=[];
-  for(const list of sr){
-    for(const x of list){
-      if(!qids.includes(x.id)){
-        qids.push(x.id);
-        searchMeta.push({id:x.id,label:x.label||"",match:x.match?.text||""});
-      }
-    }
-  }
+  for(const list of sr) for(const x of list) if(!qids.includes(x.id)) qids.push(x.id);
   if(!qids.length)return[];
 
   const es=await Promise.all(chunks(qids.slice(0,40),50).map(c=>wd({
@@ -69,6 +61,7 @@ export async function searchWikidata(query,env){
     ids(f,"P57").slice(0,2).forEach(x=>refs.add(x));
     ids(f,"P161").slice(0,6).forEach(x=>refs.add(x));
     ids(f,"P364").slice(0,1).forEach(x=>refs.add(x));
+    ids(f,"P136").slice(0,4).forEach(x=>refs.add(x));
   }
   const rs=await Promise.all(chunks([...refs],50).map(c=>wd({
     action:"wbgetentities",ids:c.join("|"),props:"labels",languages:"en|hi"
@@ -76,23 +69,29 @@ export async function searchWikidata(query,env){
   const labels=Object.assign({},...rs.map(x=>x.entities||{}));
   const name=id=>label(labels[id]);
 
-  return films.map(f=>({
-    id:"wd:"+f.id,
-    title:label(f),
-    originalTitle:val(f,"P1476")?.text||"",
-    year:year(f),
-    release:(f.claims?.P577?.[0]?.mainsnak?.datavalue?.value?.time||"").slice(1,11),
-    lang:name(ids(f,"P364")[0])||"",
-    genre:"",
-    overview:f.descriptions?.en?.value||f.descriptions?.hi?.value||"",
-    poster:"",
-    backdrop:"",
-    rating:0,
-    votes:0,
-    director:ids(f,"P57").slice(0,2).map(name).filter(Boolean).join(", "),
-    cast:ids(f,"P161").slice(0,6).map(name).filter(Boolean),
-    imdbId:val(f,"P345")||"",
-    source:"Wikidata",
-    sourceUrl:"https://www.wikidata.org/wiki/"+f.id
-  }));
+  return films.map(f=>{
+    const imageFile=val(f,"P18");
+    const poster=imageFile
+      ?"https://commons.wikimedia.org/wiki/Special:Redirect/file/"+encodeURIComponent(imageFile)
+      :"";
+    return {
+      id:"wd:"+f.id,
+      title:label(f),
+      originalTitle:val(f,"P1476")?.text||"",
+      year:year(f),
+      release:(f.claims?.P577?.[0]?.mainsnak?.datavalue?.value?.time||"").slice(1,11),
+      lang:name(ids(f,"P364")[0])||"",
+      genre:ids(f,"P136").slice(0,4).map(name).filter(Boolean).join(" · "),
+      overview:f.descriptions?.en?.value||f.descriptions?.hi?.value||"",
+      poster,
+      backdrop:"",
+      rating:0,
+      votes:0,
+      director:ids(f,"P57").slice(0,2).map(name).filter(Boolean).join(", "),
+      cast:ids(f,"P161").slice(0,8).map(name).filter(Boolean),
+      imdbId:val(f,"P345")||"",
+      source:"Wikidata",
+      sourceUrl:"https://www.wikidata.org/wiki/"+f.id
+    };
+  });
 }
