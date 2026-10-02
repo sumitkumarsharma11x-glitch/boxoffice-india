@@ -1,6 +1,20 @@
-name = "boxoffice-india-movie-api"
-main = "index.js"
+name = "boxoffice-movie-search"
+main = "src/index.js"
 compatibility_date = "2026-10-01"
+workers_dev = true
 
 [vars]
-ALLOWED_ORIGIN = "https://sumitkumarsharma11x-glitch.github.io"
+ALLOWED_ORIGINS = "https://sumitkumarsharma11x-glitch.github.io,http://localhost:8080"
+SEARCH_PROVIDER = "tmdb"
+
+# TMDB_READ_TOKEN is a secret, not a [vars] value.
+# Set it with: npx wrangler secret put TMDB_READ_TOKEN
+
+# Enable after the basic search path is verified.
+# [[ratelimits]]
+# name = "RATE_LIMITER"
+# namespace_id = "1001"
+#
+#   [ratelimits.simple]
+#   limit = 30
+#   period = 60
