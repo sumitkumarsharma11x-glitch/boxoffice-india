@@ -13,11 +13,19 @@ async function wd(params,env){
 }
 async function wikiSummary(title){
   try{
-    const slug=encodeURIComponent(String(title).trim().replace(/ /g,"_"));
-    const r=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+slug,{headers:{"Accept":"application/json"}});
+    const q=encodeURIComponent(String(title).trim());
+    const r=await fetch("https://en.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&redirects=1&prop=pageimages|extracts|info&exintro=1&explaintext=1&piprop=thumbnail|original&pithumbsize=900&inprop=url&titles="+q,{
+      headers:{"Accept":"application/json","User-Agent":"BoxOfficeIndia/1.2"}
+    });
     if(!r.ok)return null;
     const d=await r.json();
-    return {poster:d.thumbnail?.source||d.originalimage?.source||"",overview:d.extract||"",sourceUrl:d.content_urls?.desktop?.page||""};
+    const p=d.query?.pages?.[0];
+    if(!p||p.missing)return null;
+    return {
+      poster:p.thumbnail?.source||p.original?.source||"",
+      overview:p.extract||"",
+      sourceUrl:p.fullurl||""
+    };
   }catch{return null}
 }
 const ids=(e,p)=>(e.claims?.[p]||[]).map(c=>c.mainsnak?.datavalue?.value?.id).filter(Boolean);
