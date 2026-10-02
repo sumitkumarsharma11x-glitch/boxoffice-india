@@ -1,3 +1,4 @@
 window.BOI_CONFIG = {
-  SEARCH_API: "https://boxoffice-movie-search.<YOUR-SUBDOMAIN>.workers.dev"
+  // Add the deployed Cloudflare Worker URL here after deployment.
+  SEARCH_API: ""
 };
