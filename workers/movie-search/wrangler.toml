@@ -1,0 +1,6 @@
+name = "boxoffice-india-movie-api"
+main = "index.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://sumitkumarsharma11x-glitch.github.io"
